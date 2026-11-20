@@ -4,7 +4,7 @@ A Google Tasks connector for Claude. It's a remote MCP server you deploy to your
 
 ## What it does
 
-It gives Claude seven tools for your Google Tasks.
+It gives Claude nine tools for your Google Tasks.
 
 | Tool | What it does |
 | --- | --- |
@@ -15,8 +15,12 @@ It gives Claude seven tools for your Google Tasks.
 | `complete_task` | Marks a task completed. |
 | `delete_task` | Deletes a task. A task assigned from Google Docs or Chat is deleted there too. |
 | `create_task_list` | Adds a task list. |
+| `schedule_task` | Gives a task a time block on your Google Calendar, linked to the task the way Calendars by Readdle links one. A task that already has a block is moved. |
+| `unschedule_task` | Takes a task's time block off the calendar and keeps the task. |
 
 Dates are `YYYY-MM-DD`. A list can be given by its id (`task_list_id`) or its title (`list`). When a tool that acts on one task isn't told which list it's in, the server looks in every list. `list_tasks` also returns tasks assigned to you from Google Docs and Chat.
+
+Google Tasks keeps no time of day, so `schedule_task` puts the time on your primary Google Calendar instead. It makes an event titled like the task, sets the private extended property `LINKEDTASK` on it, and adds a line reading `@scheduled:1` to the task's notes. That is what [Calendars by Readdle](https://readdle.com/calendars) writes when you drag a task onto the calendar, so the app shows the event as the task. Readdle doesn't document this, so an update to the app can break the link, and the event then shows as a plain event. Other calendar apps show it as a plain event.
 
 It also works in scheduled and unattended Claude runs. The server keeps the Google sign-in and renews Google's access on its own, so nobody has to sign in again as long as Claude uses the connector at least once every 180 days.
 
@@ -33,7 +37,7 @@ You need a Google account, a Vercel account, a GitHub account, Node 22, and the 
 ### 1. Google Cloud
 
 1. In https://console.cloud.google.com, create a project.
-2. Under APIs & Services, Library, find the Google Tasks API and enable it.
+2. Under APIs & Services, Library, find the Google Tasks API and enable it. Enable the Google Calendar API there too, which `schedule_task` and `unschedule_task` need.
 3. Under APIs & Services, OAuth consent screen (Google Auth Platform), set up the consent screen. Give it a name, such as Google Tasks for Claude, and your email. Choose External as the audience.
 4. Under Audience, choose Publish app, so the publishing status is In production. In Testing, Google expires the sign-in every 7 days. As the only user you don't need Google's verification, but when you sign in Google will warn that it hasn't verified the app. Choose Advanced, then Go to (your app's name).
 5. Under Clients, create a client of type Web application. Add `https://YOUR-DOMAIN/oauth/google/callback` under Authorized redirect URIs. Save the client ID and the client secret.
@@ -89,7 +93,7 @@ Every push to `main` runs the checks and then deploys. To deploy without a new c
 2. Give it a name, such as Google Tasks, and paste `https://YOUR-DOMAIN/mcp` as the server URL.
 3. Under Authentication, keep Sign in now. Under OAuth client, keep Use Claude's published identity. Claude marks both Detected. Leave Request headers empty and choose Add. If your dialog shows Advanced settings instead of these choices, leave the OAuth client ID and secret empty.
 4. Choose Connect. The server's page shows the address it will send you back to. Choose Continue with Google.
-5. Sign in with Google. If Google says it hasn't verified the app, choose Advanced, then the Go to link. Leave the Google Tasks box ticked and choose Continue.
+5. Sign in with Google. If Google says it hasn't verified the app, choose Advanced, then the Go to link. Leave the Google Tasks and Google Calendar boxes ticked and choose Continue. Without the Calendar box the task tools still work, and `schedule_task` says to reconnect.
 
 ## Settings
 
@@ -117,7 +121,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Limits
 
-- The Google Tasks API stores a task's date with no time of day.
+- The Google Tasks API stores a task's date with no time of day. `schedule_task` gives a task a time by adding a linked event to Google Calendar.
 - The separate deadline that the Google Tasks app shows isn't available through the API, so a deadline that differs from a task's date goes in its notes.
 - Recurring tasks can't be created through the API.
 

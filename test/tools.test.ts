@@ -161,7 +161,7 @@ afterEach(() => {
 });
 
 describe("registerTools", () => {
-  it("registers the seven tools with their annotations", () => {
+  it("registers the nine tools with their annotations", () => {
     const readOnly = { readOnlyHint: true, openWorldHint: false };
     const write = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
     expect(Object.fromEntries([...tools].map(([name, tool]) => [name, tool.config.annotations]))).toEqual({
@@ -172,6 +172,8 @@ describe("registerTools", () => {
       complete_task: { ...write, idempotentHint: true },
       delete_task: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
       create_task_list: write,
+      schedule_task: { ...write, idempotentHint: true },
+      unschedule_task: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     });
     for (const tool of tools.values()) {
       expect(tool.config.title.length).toBeGreaterThan(0);

@@ -235,7 +235,7 @@ describe("/mcp tools", () => {
     await client.close();
   });
 
-  it("lists exactly the seven tools with the right annotations", async () => {
+  it("lists exactly the nine tools with the right annotations", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
     const readOnly = { readOnlyHint: true, openWorldHint: false };
@@ -248,6 +248,8 @@ describe("/mcp tools", () => {
       complete_task: { ...write, idempotentHint: true },
       delete_task: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
       create_task_list: write,
+      schedule_task: { ...write, idempotentHint: true },
+      unschedule_task: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     });
     for (const tool of tools) {
       expect(tool.inputSchema.type).toBe("object");

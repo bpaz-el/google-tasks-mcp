@@ -4,6 +4,12 @@ import { getPublicOrigin } from "mcp-handler";
 /** The Google scope the server asks for. Read and write access to Google Tasks. */
 export const GOOGLE_TASKS_SCOPE = "https://www.googleapis.com/auth/tasks";
 
+/**
+ * Creating and changing calendar events, and nothing else in Google Calendar.
+ * Only schedule_task and unschedule_task use it.
+ */
+export const GOOGLE_CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
 /** The one scope this server grants to MCP clients. */
 export const MCP_SCOPE = "tasks";
 
@@ -20,6 +26,7 @@ export type Config = {
   googleTokenUrl: string;
   googleRevokeUrl: string;
   tasksApiUrl: string;
+  calendarApiUrl: string;
 };
 
 export type ConfigResult =
@@ -58,6 +65,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ConfigResult {
       googleTokenUrl: env.GOOGLE_TOKEN_URL || "https://oauth2.googleapis.com/token",
       googleRevokeUrl: env.GOOGLE_REVOKE_URL || "https://oauth2.googleapis.com/revoke",
       tasksApiUrl: (env.GOOGLE_TASKS_API_URL || "https://tasks.googleapis.com/tasks/v1").replace(/\/+$/, ""),
+      calendarApiUrl: (env.GOOGLE_CALENDAR_API_URL || "https://www.googleapis.com/calendar/v3").replace(/\/+$/, ""),
     },
   };
 }

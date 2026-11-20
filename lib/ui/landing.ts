@@ -60,7 +60,7 @@ ${copyField(googleCallbackUrl(options.origin), "Copy the Google redirect URI")}
 <li><span class="box" aria-hidden="true"></span><span>Give it a name, such as <b>Google Tasks</b>, and paste the connector URL above as the server URL.</span></li>
 <li><span class="box" aria-hidden="true"></span><span>Under <b>Authentication</b>, keep <b>Sign in now</b>. Under <b>OAuth client</b>, keep <b>Use Claude's published identity</b>. Claude marks both <b>Detected</b>. Leave <b>Request headers</b> empty and choose <b>Add</b>.</span></li>
 <li><span class="box" aria-hidden="true"></span><span>Choose <b>Connect</b>. This server shows the address it will send you back to, which is claude.ai. Choose <b>Continue with Google</b>.</span></li>
-<li><span class="box" aria-hidden="true"></span><span>Sign in with Google. If Google says it hasn't verified the app, choose <b>Advanced</b>, then the <b>Go to</b> link. Leave the <b>Google Tasks</b> box ticked and choose <b>Continue</b>.</span></li>
+<li><span class="box" aria-hidden="true"></span><span>Sign in with Google. If Google says it hasn't verified the app, choose <b>Advanced</b>, then the <b>Go to</b> link. Leave the <b>Google Tasks</b> and <b>Google Calendar</b> boxes ticked and choose <b>Continue</b>.</span></li>
 </ol>
 <p class="help">If your dialog shows <b>Advanced settings</b> instead of these choices, leave the OAuth client ID and secret empty.</p>
 </div>

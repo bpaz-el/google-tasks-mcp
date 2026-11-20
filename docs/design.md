@@ -25,7 +25,7 @@ There is no database. Every client id, code and token this server issues is a se
 | `TOKEN_SECRET` | no | Key material for sealing. Defaults to the Google client secret |
 | `PUBLIC_URL` | no | Fixes the public origin, such as `https://tasks.example.com`. Defaults to the request's host |
 
-`GOOGLE_AUTH_URL`, `GOOGLE_TOKEN_URL`, `GOOGLE_REVOKE_URL` and `GOOGLE_TASKS_API_URL` point the server at a stand-in Google for local end-to-end testing. Never set them in production.
+`GOOGLE_AUTH_URL`, `GOOGLE_TOKEN_URL`, `GOOGLE_REVOKE_URL`, `GOOGLE_TASKS_API_URL` and `GOOGLE_CALENDAR_API_URL` point the server at a stand-in Google for local end-to-end testing. Never set them in production.
 
 When a required setting is missing, the home page lists it, `/authorize` and the Google callback show an error page with status 503, `/token` and `/register` answer `503 temporarily_unavailable`, and `/mcp` answers 401.
 
@@ -127,7 +127,7 @@ The response is `201` with `client_id` (a sealed `"client"` blob with no expiry)
 1. Open `request`. Expired or forged: error page, 400.
 2. The `__Host-gtm_csrf` cookie must equal the blob's `csrf`, else error page, 403. A `SameSite=Strict` cookie isn't sent on a cross-site form post, so another site can't skip the consent page.
 3. `decision=deny` (Cancel): `303` to the client with `error=access_denied`, `state` and `iss=<origin>`. This, a cancel at Google, and a finished sign-in are the only times the person is sent to the client.
-4. Otherwise make a `nonce` and a PKCE verifier, seal them with the pending authorization as `"google_state"` (10 minutes), set `__Host-gtm_nonce=<nonce>` (`SameSite=Lax`, because Google's redirect back is a cross-site navigation), clear the csrf cookie, and answer `303` to Google with: `client_id`, `redirect_uri=<origin>/oauth/google/callback`, `response_type=code`, `scope=openid email https://www.googleapis.com/auth/tasks`, `access_type=offline`, `prompt=consent`, `state`, `code_challenge`, `code_challenge_method=S256`, and `login_hint` when exactly one email is allowed.
+4. Otherwise make a `nonce` and a PKCE verifier, seal them with the pending authorization as `"google_state"` (10 minutes), set `__Host-gtm_nonce=<nonce>` (`SameSite=Lax`, because Google's redirect back is a cross-site navigation), clear the csrf cookie, and answer `303` to Google with: `client_id`, `redirect_uri=<origin>/oauth/google/callback`, `response_type=code`, `scope=openid email https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar.events`, `access_type=offline`, `prompt=consent`, `state`, `code_challenge`, `code_challenge_method=S256`, and `login_hint` when exactly one email is allowed.
 
 ### GET /oauth/google/callback
 
@@ -189,6 +189,8 @@ The tool names and arguments match the ones my own Claude skills already use. Da
 | `complete_task` | `task_id`, `task_list_id?` or `list?` | the updated `Task` |
 | `delete_task` | `task_id`, `task_list_id?` or `list?` | `{ deleted: true, task_id, task_list_id }` |
 | `create_task_list` | `title` | `{ id, title, updated }` |
+| `schedule_task` | `task_id`, `task_list_id?` or `list?`, `start` (`YYYY-MM-DDTHH:MM`, no offset), `duration_minutes?` (default 30, 5 to 1440), `time_zone?` (IANA name) | `{ task: Task, event: { id, start, end, time_zone, html_link }, moved }` |
+| `unschedule_task` | `task_id`, `task_list_id?` or `list?` | `{ task: Task, events_removed }` |
 
 `Task` is `{ id, task_list_id, task_list, title, notes?, due?, status, completed?, parent?, web_view_link?, updated }`.
 
@@ -200,4 +202,27 @@ The tool names and arguments match the ones my own Claude skills already use. Da
 - When `task_list_id` and `list` are both omitted for a single task, the server looks for the task in each list.
 - `notes` replaces the whole notes field.
 - In the tool annotations, the two list tools have `readOnlyHint: true`. `update_task` and `delete_task` have `destructiveHint: true`, since `update_task` can overwrite or clear fields. `create_task`, `complete_task` and `create_task_list` have `destructiveHint: false`. `update_task` and `complete_task` also have `idempotentHint: true`, and every tool has `openWorldHint: false`.
+- `schedule_task` and `unschedule_task` also have `idempotentHint: true`. `schedule_task` has `destructiveHint: false` and `unschedule_task` has `destructiveHint: true`, since it deletes a calendar event.
 - A Google API error becomes a tool error (`isError: true`) with a plain message. A 401 from Google says to reconnect the connector in Claude, under Customize, then Connectors.
+
+### Scheduling a task
+
+The Tasks API has no time of day, so a time block lives in Google Calendar. `lib/tools/schedule.ts` writes what Calendars by Readdle writes when a task is dragged onto the calendar, which was read off an event the app made:
+
+- an event on the primary calendar, with the task's title as its summary, a 15 minute popup alert, and the private extended property `LINKEDTASK` set to `{"taskIdentifier":"<task id>","taskAccountKind":1,"taskDate":<start>}`. `taskDate` is the start in whole seconds since 2001-01-01T00:00:00Z, and `taskAccountKind` 1 is a Google Tasks account.
+- a line reading `@scheduled:1` in the task's notes, added after any notes already there.
+
+Readdle doesn't document this format. If the app changes it, the event shows as a plain event until the code follows.
+
+`schedule_task` goes in this order, so a failure leaves as little behind as it can:
+
+1. Find the task. A completed task is refused, and so is one whose notes have no room for the tag.
+2. Work out the instant `start` names in `time_zone`, or in the primary calendar's zone when that is left out. The zone comes from an events listing, because the `calendar.events` scope can't read the calendar itself. A time skipped by a daylight-saving change moves forward, and a time that happens twice takes the first.
+3. Look for an event already linked to the task, from 60 days back to 400 days ahead. If there is one, patch its summary, times and `LINKEDTASK`, and answer `moved: true`. Otherwise insert a new event.
+4. Add the tag to the task's notes if it isn't there. If that fails after a new event was inserted, delete the event.
+
+`unschedule_task` deletes every event linked to the task in the same window, then removes the tag's line from the notes. A task with neither is a tool error.
+
+The task's own `due` is never changed, because Calendars doesn't change it either. Both tools use the primary calendar only. A Calendar `403` becomes one of two messages: reconnect and leave the Google Calendar box ticked, or enable the Google Calendar API in the server's Google Cloud project.
+
+The Google callback still requires only the Google Tasks scope, so a person who unticks the Calendar box can use the seven task tools.

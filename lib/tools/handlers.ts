@@ -37,7 +37,7 @@ export type TaskListSummary = { id: string; title: string; updated?: string };
 type ListRef = { id: string; title: string };
 
 /** The two ways a tool can be told which list to use. */
-type ListChoice = { task_list_id?: string; list?: string };
+export type ListChoice = { task_list_id?: string; list?: string };
 
 export function toTask(task: GoogleTask, list: ListRef): Task {
   const out: Task = {
@@ -159,7 +159,7 @@ async function patch(client: TasksClient, args: ListChoice & { task_id: string }
 }
 
 /** task_list_id as given, or the id of the list whose title is `list`. */
-async function listId(client: TasksClient, args: ListChoice): Promise<string | undefined> {
+export async function listId(client: TasksClient, args: ListChoice): Promise<string | undefined> {
   if (args.list === undefined) return args.task_list_id;
   if (args.task_list_id !== undefined) throw new ToolError("Pass list or task_list_id, not both.");
   const wanted = args.list.trim().toLowerCase();
@@ -177,7 +177,7 @@ async function listId(client: TasksClient, args: ListChoice): Promise<string | u
 }
 
 /** Looks through each list in turn for a task when the caller didn't say which list it is in. */
-async function findTask(client: TasksClient, taskId: string): Promise<{ list: GoogleTaskList; task: GoogleTask }> {
+export async function findTask(client: TasksClient, taskId: string): Promise<{ list: GoogleTaskList; task: GoogleTask }> {
   const lists = await client.listTaskLists();
   for (const list of lists) {
     try {

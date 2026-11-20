@@ -1,8 +1,8 @@
-import { GOOGLE_TASKS_SCOPE, type Config } from "@/lib/config";
+import { GOOGLE_CALENDAR_EVENTS_SCOPE, GOOGLE_TASKS_SCOPE, type Config } from "@/lib/config";
 
 /** Google's side of the sign-in: the consent URL, code exchange, refresh, revoke and the ID token. */
 
-export const GOOGLE_SCOPES = ["openid", "email", GOOGLE_TASKS_SCOPE].join(" ");
+export const GOOGLE_SCOPES = ["openid", "email", GOOGLE_TASKS_SCOPE, GOOGLE_CALENDAR_EVENTS_SCOPE].join(" ");
 export const GOOGLE_ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
 
 const GOOGLE_TIMEOUT_MS = 10_000;

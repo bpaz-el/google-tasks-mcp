@@ -35,7 +35,7 @@ There is no database. Every client id, authorization code, access token and refr
 - PKCE with S256 is required from Claude, and the server uses it again for its own hop to Google. A nonce cookie ties Google's redirect back to the browser that started it.
 - Redirect URIs must match a registered one exactly, except that a loopback `http` redirect may use any port.
 - Client ID Metadata Documents are fetched with no redirects, a 5 second timeout and a 32 KB cap. URLs with a query, and hosts that are `localhost` or an IP address, are refused.
-- Access tokens are bound to this server's `/mcp` resource. The server asks Google only for `openid`, `email` and the Google Tasks scope.
+- Access tokens are bound to this server's `/mcp` resource. The server asks Google only for `openid`, `email`, the Google Tasks scope, and the scope for creating and changing calendar events (`calendar.events`), which only `schedule_task` and `unschedule_task` use.
 
 The full design, with every check in order, is in [docs/design.md](docs/design.md).
 
