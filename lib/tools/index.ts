@@ -1,5 +1,6 @@
 import type { CallToolResult, McpServer, ServerContext, ToolAnnotations } from "@modelcontextprotocol/server";
 import { loadConfig } from "@/lib/config";
+import { CalendarApiError, CalendarClient } from "@/lib/google/calendar";
 import { TasksApiError, TasksClient } from "@/lib/google/tasks";
 import { describeError, RECONNECT_MESSAGE, ToolError } from "@/lib/tools/errors";
 import {
@@ -11,6 +12,7 @@ import {
   listTasks,
   updateTask,
 } from "@/lib/tools/handlers";
+import { scheduleTask, unscheduleTask } from "@/lib/tools/schedule";
 import {
   completeTaskInput,
   createTaskInput,
@@ -18,12 +20,16 @@ import {
   deleteTaskInput,
   listTaskListsInput,
   listTasksInput,
+  scheduleTaskInput,
+  unscheduleTaskInput,
   updateTaskInput,
 } from "@/lib/tools/schemas";
 
 export type RegisterToolsOptions = {
   /** Defaults to Config.tasksApiUrl. */
   tasksApiUrl?: string;
+  /** Defaults to Config.calendarApiUrl. */
+  calendarApiUrl?: string;
   fetch?: typeof fetch;
 };
 
@@ -32,7 +38,7 @@ const WRITE: ToolAnnotations = { readOnlyHint: false, destructiveHint: false, op
 const DESTRUCTIVE: ToolAnnotations = { readOnlyHint: false, destructiveHint: true, openWorldHint: false };
 
 export function registerTools(server: McpServer, options: RegisterToolsOptions = {}): void {
-  const run = (ctx: ServerContext, operation: (client: TasksClient) => Promise<unknown>) =>
+  const run = (ctx: ServerContext, operation: (client: TasksClient, calendar: CalendarClient) => Promise<unknown>) =>
     runTool(ctx, options, operation);
 
   server.registerTool(
@@ -132,29 +138,65 @@ export function registerTools(server: McpServer, options: RegisterToolsOptions =
     },
     (args, ctx) => run(ctx, (client) => createTaskList(client, args)),
   );
+
+  server.registerTool(
+    "schedule_task",
+    {
+      title: "Schedule task",
+      description:
+        "Give a task a time block on the person's Google Calendar, the way dragging it onto the calendar does in Calendars by Readdle, " +
+        "and return the task and the event. The block is an event on the primary calendar that is linked to the task, " +
+        "so Calendars shows it as the task and ticking either one completes both. " +
+        "start is the clock time in the calendar's time zone (YYYY-MM-DDTHH:MM, no offset), and duration_minutes is its length. " +
+        "A task that already has a time block is moved to the new time and moved is true. " +
+        "The task's own date (due) is left alone. A completed task has to be reopened first. " +
+        "Without task_list_id or list, every list is searched for the task.",
+      inputSchema: scheduleTaskInput,
+      annotations: { ...WRITE, idempotentHint: true },
+    },
+    (args, ctx) => run(ctx, (client, calendar) => scheduleTask(client, calendar, args)),
+  );
+
+  server.registerTool(
+    "unschedule_task",
+    {
+      title: "Unschedule task",
+      description:
+        "Take a task's time block off the person's Google Calendar and return the task. " +
+        "It deletes the calendar event that schedule_task or Calendars by Readdle linked to the task, and keeps the task itself. " +
+        "Without task_list_id or list, every list is searched for the task.",
+      inputSchema: unscheduleTaskInput,
+      annotations: { ...DESTRUCTIVE, idempotentHint: true },
+    },
+    (args, ctx) => run(ctx, (client, calendar) => unscheduleTask(client, calendar, args)),
+  );
 }
 
 async function runTool(
   ctx: ServerContext,
   options: RegisterToolsOptions,
-  operation: (client: TasksClient) => Promise<unknown>,
+  operation: (client: TasksClient, calendar: CalendarClient) => Promise<unknown>,
 ): Promise<CallToolResult> {
   // withMcpAuth put the verified access token's contents here (lib/mcp-auth.ts).
   const accessToken = ctx.http?.authInfo?.extra?.googleAccessToken;
   if (typeof accessToken !== "string" || accessToken.length === 0) return toolError(RECONNECT_MESSAGE);
 
-  let tasksApiUrl = options.tasksApiUrl;
-  if (!tasksApiUrl) {
+  let { tasksApiUrl, calendarApiUrl } = options;
+  if (!tasksApiUrl || !calendarApiUrl) {
     const loaded = loadConfig();
     if (!loaded.ok) return toolError(`The server is missing settings: ${loaded.missing.join(", ")}.`);
-    tasksApiUrl = loaded.config.tasksApiUrl;
+    tasksApiUrl ??= loaded.config.tasksApiUrl;
+    calendarApiUrl ??= loaded.config.calendarApiUrl;
   }
 
   try {
-    const result = await operation(new TasksClient({ accessToken, baseUrl: tasksApiUrl, fetch: options.fetch }));
+    const result = await operation(
+      new TasksClient({ accessToken, baseUrl: tasksApiUrl, fetch: options.fetch }),
+      new CalendarClient({ accessToken, baseUrl: calendarApiUrl, fetch: options.fetch }),
+    );
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (error) {
-    if (!(error instanceof ToolError) && !(error instanceof TasksApiError)) {
+    if (!(error instanceof ToolError) && !(error instanceof TasksApiError) && !(error instanceof CalendarApiError)) {
       console.error("Tool failed:", error);
     }
     return toolError(describeError(error));

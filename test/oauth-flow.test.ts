@@ -20,7 +20,7 @@ import * as authorizeRoute from "@/app/authorize/route";
 import * as callbackRoute from "@/app/oauth/google/callback/route";
 import * as registerRoute from "@/app/register/route";
 import * as tokenRoute from "@/app/token/route";
-import { GOOGLE_TASKS_SCOPE, loadConfig } from "@/lib/config";
+import { GOOGLE_CALENDAR_EVENTS_SCOPE, GOOGLE_TASKS_SCOPE, loadConfig } from "@/lib/config";
 import { randomString, s256, seal, unseal } from "@/lib/crypto";
 import { clearCimdCache } from "@/lib/oauth/cimd";
 import type {
@@ -338,7 +338,7 @@ describe("sign-in with a DCR client", () => {
     expect(q.get("client_id")).toBe(GOOGLE_CLIENT_ID);
     expect(q.get("redirect_uri")).toBe(CALLBACK);
     expect(q.get("response_type")).toBe("code");
-    expect(q.get("scope")).toBe(`openid email ${GOOGLE_TASKS_SCOPE}`);
+    expect(q.get("scope")).toBe(`openid email ${GOOGLE_TASKS_SCOPE} ${GOOGLE_CALENDAR_EVENTS_SCOPE}`);
     expect(q.get("access_type")).toBe("offline");
     expect(q.get("prompt")).toBe("consent");
     expect(q.get("code_challenge_method")).toBe("S256");

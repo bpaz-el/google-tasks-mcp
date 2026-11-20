@@ -13,7 +13,7 @@ export function privacyPage(): string {
 <h1 class="title">What this server does with your data</h1>
 <div class="prose">
 <h2>What it reads</h2>
-<p>When you sign in, Google tells this server your email address, so it can check that your account is allowed to use it. After that, it reads and changes your tasks and task lists through the Google Tasks API, only when the app you connected, such as Claude, asks it to.</p>
+<p>When you sign in, Google tells this server your email address, so it can check that your account is allowed to use it. After that, it reads and changes your tasks and task lists through the Google Tasks API, only when the app you connected, such as Claude, asks it to. When that app schedules a task, the server also creates, moves or deletes the calendar event for it through the Google Calendar API. To find that event it reads the events on your main calendar from 60 days back to 400 days ahead, and it passes on only the one linked to that task.</p>
 <h2>What it keeps</h2>
 <p>Nothing. There is no database. Your Google sign-in is sealed inside encrypted tokens that only this server can open, and the app you connected holds those tokens, not this server. Tasks pass through on their way to that app and are not saved. The hosting provider may keep ordinary request logs, such as times and IP addresses. These pages load their fonts from Google Fonts, so Google sees your IP address when a page opens.</p>
 <h2>Who sees it</h2>

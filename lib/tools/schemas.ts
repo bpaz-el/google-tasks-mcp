@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DATE_PATTERN, isCalendarDate } from "@/lib/tools/dates";
+import { isLocalTime, isTimeZone } from "@/lib/tools/time";
 
 // Google's own limits for a task's title and notes.
 const TITLE_MAX = 1024;
@@ -102,9 +103,39 @@ export const createTaskListInput = z.strictObject({
   title: title.describe("The new list's title."),
 });
 
+export const scheduleTaskInput = z.strictObject({
+  task_id: taskId,
+  task_list_id: findTaskListId,
+  list,
+  start: z
+    .string()
+    .refine(isLocalTime, "Use a local time such as 2026-11-21T14:00, with no offset or Z.")
+    .describe("When the time block starts, as the clock reads in the calendar's time zone: YYYY-MM-DDTHH:MM, with no offset or Z."),
+  duration_minutes: z
+    .number()
+    .int()
+    .min(5)
+    .max(24 * 60)
+    .default(30)
+    .describe("How long the time block lasts, in minutes."),
+  time_zone: z
+    .string()
+    .refine(isTimeZone, "Use an IANA time zone name such as America/Chicago.")
+    .optional()
+    .describe("The IANA time zone start is in, such as America/Chicago. Leave it out to use the calendar's own time zone."),
+});
+
+export const unscheduleTaskInput = z.strictObject({
+  task_id: taskId,
+  task_list_id: findTaskListId,
+  list,
+});
+
 export type ListTasksArgs = z.output<typeof listTasksInput>;
 export type CreateTaskArgs = z.output<typeof createTaskInput>;
 export type UpdateTaskArgs = z.output<typeof updateTaskInput>;
 export type CompleteTaskArgs = z.output<typeof completeTaskInput>;
 export type DeleteTaskArgs = z.output<typeof deleteTaskInput>;
 export type CreateTaskListArgs = z.output<typeof createTaskListInput>;
+export type ScheduleTaskArgs = z.output<typeof scheduleTaskInput>;
+export type UnscheduleTaskArgs = z.output<typeof unscheduleTaskInput>;

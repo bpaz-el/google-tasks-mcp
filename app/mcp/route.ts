@@ -11,7 +11,9 @@ const INSTRUCTIONS =
   "The separate deadline set in the Tasks app can't be read or set through the API, " +
   "so a deadline that differs from the date goes in the notes. " +
   "Use list_task_lists to find list ids, or pass a list's title as list. " +
-  "The tools that act on one task search every list when task_list_id and list are left out.";
+  "The tools that act on one task search every list when task_list_id and list are left out. " +
+  "To give a task a time of day, use schedule_task, which puts a linked time block on the person's Google Calendar " +
+  "and leaves the task's date alone. unschedule_task takes the block away.";
 
 const mcpHandler = createMcpHandler((server) => registerTools(server), {
   serverInfo: { name: "google-tasks-mcp", version: packageJson.version },
