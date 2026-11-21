@@ -195,7 +195,7 @@ The tool names and arguments match the ones my own Claude skills already use. Da
 `Task` is `{ id, task_list_id, task_list, title, notes?, due?, status, completed?, parent?, web_view_link?, updated }`.
 
 - `due` is the task's date in Google Tasks, the day it should be done and the day it shows on the calendar. It isn't the separate deadline the Tasks app can set, which the API can't read or write, so the tool descriptions tell Claude to put a deadline that differs from the date in the notes.
-- `list` is a list's title, matched exactly but ignoring case. Passing both `list` and `task_list_id`, a title no list has, or a title two lists share is a tool error.
+- `list` is a list's title, matched exactly but ignoring case. Calendars by Readdle keeps a list's settings in its title as extra lines such as `@color:#FFDB17`. Those lines are ignored when matching, and left out of `task_list` and of the titles `list_task_lists` returns, so a list titled `EveryLift\n@color:#FFDB17` is just `EveryLift`. Passing both `list` and `task_list_id`, a title no list has, or a title two lists share is a tool error.
 - Every tool rejects arguments it doesn't know, so a misspelled argument is an error instead of being silently dropped.
 - `list_tasks` without `task_list_id` or `list` reads every list, and it asks Google for tasks assigned to the person from Google Docs and Chat too. `due_before` and `due_after` are inclusive and leave out undated tasks.
 - `list_tasks` puts open tasks first, sorted by due date with undated ones last, then completed tasks, most recently completed first. Ties go by list title, then position in the list. `max_results` is applied after sorting, so the oldest completed tasks are the first to be cut.

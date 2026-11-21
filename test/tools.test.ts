@@ -547,3 +547,36 @@ describe("errors", () => {
     expect(String((stub.mock.calls[0] as unknown[])[0])).toBe(`${BASE}/users/@me/lists?maxResults=100`);
   });
 });
+
+describe("list titles that carry Calendars settings", () => {
+  beforeEach(() => {
+    google.addList("el", "EveryLift\n@color:#FFDB17");
+    google.addTask("el", { id: "t-el", title: "Ship it" });
+  });
+
+  it("matches a list by its name alone, or by its whole title", async () => {
+    expect((await call("create_task", { title: "A", list: "everylift" })).task_list_id).toBe("el");
+    expect((await call("create_task", { title: "B", list: "EveryLift\n@color:#FFDB17" })).task_list_id).toBe("el");
+  });
+
+  it("shows the name without the settings lines", async () => {
+    const { task_lists } = (await call("list_task_lists")) as { task_lists: { id: string; title: string }[] };
+    expect(task_lists.find((list) => list.id === "el")?.title).toBe("EveryLift");
+    const { tasks } = (await call("list_tasks", { list: "EveryLift" })) as { tasks: { task_list: string }[] };
+    expect(tasks[0].task_list).toBe("EveryLift");
+    expect(await callError("create_task", { title: "C", list: "Nope" })).toContain('"My Tasks", "Work", and "EveryLift".');
+  });
+
+  it("says so when two lists share a name once the settings lines are gone", async () => {
+    google.addList("el2", "EveryLift");
+    expect(await callError("create_task", { title: "D", list: "EveryLift" })).toContain("2 task lists are called");
+  });
+
+  it("keeps ordinary titles, and titles made only of settings, as they are", async () => {
+    const { listName } = await import("@/lib/tools/handlers");
+    expect(listName("Family + Home")).toBe("Family + Home");
+    expect(listName("Email @home: later")).toBe("Email @home: later");
+    expect(listName("@color:#FFDB17")).toBe("@color:#FFDB17");
+    expect(listName("Inbox\n@color:#989DA7\n")).toBe("Inbox");
+  });
+});
