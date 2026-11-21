@@ -39,11 +39,25 @@ type ListRef = { id: string; title: string };
 /** The two ways a tool can be told which list to use. */
 export type ListChoice = { task_list_id?: string; list?: string };
 
+/**
+ * A list's name as the person sees it. Calendars by Readdle keeps a list's
+ * settings in its title, as extra lines such as `@color:#FFDB17`, so those
+ * lines are left out. A title made only of such lines is returned as it is.
+ */
+export function listName(title: string): string {
+  const name = title
+    .split("\n")
+    .filter((line) => !/^@[a-z]+:\S/i.test(line.trim()))
+    .join(" ")
+    .trim();
+  return name || title.trim();
+}
+
 export function toTask(task: GoogleTask, list: ListRef): Task {
   const out: Task = {
     id: task.id,
     task_list_id: list.id,
-    task_list: list.title,
+    task_list: listName(list.title),
     title: task.title ?? "",
     status: task.status ?? "needsAction",
   };
@@ -57,7 +71,7 @@ export function toTask(task: GoogleTask, list: ListRef): Task {
 }
 
 function summarize(list: GoogleTaskList): TaskListSummary {
-  return { id: list.id, title: list.title, updated: list.updated };
+  return { id: list.id, title: listName(list.title), updated: list.updated };
 }
 
 export async function listTaskLists(client: TasksClient): Promise<{ task_lists: TaskListSummary[] }> {
@@ -158,20 +172,22 @@ async function patch(client: TasksClient, args: ListChoice & { task_id: string }
   return toTask(task, list);
 }
 
-/** task_list_id as given, or the id of the list whose title is `list`. */
+/** task_list_id as given, or the id of the list whose name is `list`. */
 export async function listId(client: TasksClient, args: ListChoice): Promise<string | undefined> {
   if (args.list === undefined) return args.task_list_id;
   if (args.task_list_id !== undefined) throw new ToolError("Pass list or task_list_id, not both.");
   const wanted = args.list.trim().toLowerCase();
   const lists = await client.listTaskLists();
-  const matches = lists.filter((list) => list.title.trim().toLowerCase() === wanted);
+  const matches = lists.filter(
+    (list) => listName(list.title).toLowerCase() === wanted || list.title.trim().toLowerCase() === wanted,
+  );
   if (matches.length === 1) return matches[0].id;
   if (matches.length > 1) {
     throw new ToolError(
       `${matches.length} task lists are called "${args.list}", so pass task_list_id instead. list_task_lists shows their ids.`,
     );
   }
-  const titles = new Intl.ListFormat("en").format(lists.map((list) => `"${list.title}"`));
+  const titles = new Intl.ListFormat("en").format(lists.map((list) => `"${listName(list.title)}"`));
   const known = lists.length === 1 ? `The only list is ${titles}.` : `The lists are ${titles}.`;
   throw new ToolError(`No task list is called "${args.list}". ${known}`);
 }
@@ -204,7 +220,7 @@ function compareRows(a: { task: GoogleTask; list: ListRef }, b: { task: GoogleTa
   return (
     Number(aDone) - Number(bDone) ||
     (aDone ? compareRaw(b.task.completed ?? "", a.task.completed ?? "") : compareDue(a.task, b.task)) ||
-    compareText(a.list.title, b.list.title) ||
+    compareText(listName(a.list.title), listName(b.list.title)) ||
     compareRaw(a.list.id, b.list.id) ||
     compareRaw(a.task.position ?? "", b.task.position ?? "")
   );
